@@ -8,11 +8,10 @@ Run this code with
 """
 
 import requests
-import os
 from tqdm import tqdm
 from yahoo import read_symbols, YAHOO_HTMLS
 
-YAHOO_HTMLS_PATH = os.getcwd()+'"\"build\yahoo_html'
+
 def scrape_descriptions_sync():
     """Scrape companies descriptions synchronously."""
     # TODO: Second assignment. Use https://docs.python.org/3/library/urllib.html
