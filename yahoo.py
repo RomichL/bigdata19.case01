@@ -4,9 +4,11 @@ import asyncio
 from collections import defaultdict
 import csv
 import io
+import lxml.html
 from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
+from itertools import islice
 import sys
 import tarfile
 from tqdm import tqdm
@@ -14,6 +16,7 @@ from tqdm import tqdm
 import config as cfg
 
 YAHOO_ARCH = cfg.BUILDDIR / 'yahoo.tbz2'
+YAHOO_DATA = cfg.BUILDDIR / 'yahoo.csv'
 YAHOO_HTMLS = cfg.BUILDDIR / 'yahoo_html'
 YAHOO_PARQUET = cfg.BUILDDIR / 'yahoo.parquet'
 
@@ -68,7 +71,7 @@ def scrape_descriptions_async():
     progress.close()
 
 
-def compress_descriptions(encoding='utf-8', batch_size=1000, compression='BROTLI'):
+def compress_descriptions(encoding='utf-8', batch_size=100, compression='BROTLI'):
     """Convert tarfile to parquet"""
 
     names = ('symbol', 'html')
@@ -116,9 +119,41 @@ def decompress_descriptions(encoding='utf-8'):
 
     progress.close()
 
+def parse_descriptions(scr=YAHOO_PARQUET, dst=YAHOO_DATA):
+    """Parsing description section from HTML"""
+
+    reader = pq.ParquetFile(scr)
+
+    with tqdm(total=reader.metadata.num_rows) as progress:
+        with open(dst, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=['symbol', 'sector', 'industry', 'employees', 'description'])
+            writer.writeheader()
+            for g in range(reader.metadata.num_row_groups):
+                table = reader.read_row_group(g).to_pydict()
+                counter = 0
+                for symbol, html in zip(table['symbol'], table['html']):
+                    tree = lxml.html.fromstring(html)
+                    row = {'symbol': symbol.strip().rstrip()}
+                    row['description'] = '\n'.join(tree.xpath('//section[h2//*[text()="Description"]]/p/text()'))
+                    info = tree.xpath('//div[@class="asset-profile-container"]//p[span[text()="Sector"]]')
+                    if info:
+                        row['sector'] = (info[0].xpath('./span[text()="Sector"]/following-sibling::span[1]/text()') or [''])[0]
+                        row['industry'] = (info[0].xpath('./span[text()="Industry"]/following-sibling::span[1]/text()') or [''])[0]
+                        row['employees'] = (info[0].xpath('./span[text()="Full Time Employees"]/following-sibling::span[1]/span/text()')or [''])[0].replace(',', '')
+
+                    writer.writerow(row)
+                    progress.update()
+                    counter += 1
+                    if counter == 10000:
+                        return
+
+
 
 def main():
-    scrape_descriptions_async()
+    #scrape_descriptions_async()
+    #compress_descriptions()
+    #decompress_descriptions()
+    parse_descriptions()
 
 
 if __name__ == '__main__':
