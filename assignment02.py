@@ -4,7 +4,8 @@ Assignment 02
 The goal of this assignment is to implement synchronous scraping using standard python modules,
 and compare the scraping speed to asynchronous mode.
 Run this code with
-    > fab run assignment02.py
+
+    > invoke run assignment02.py
 """
 
 import requests

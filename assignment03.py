@@ -5,7 +5,8 @@ The goal of this assignment is to start working on individual project.
 You need to find data source, and scrape it to Parquet file.
 It is recommended to scrape data asynchronously, in batches.
 Run this code with
-    > fab run "assignment03:scrape_data()"
+
+    > invoke run assignment03:scrape_data()
 """
 
 import aiohttp
